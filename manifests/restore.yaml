@@ -1,0 +1,7 @@
+apiVersion: backstore.github.com/v1alpha1
+kind: Restore
+metadata:
+  name: restore-pvc-mysql
+spec:
+  backup-name: mysql-fresh
+  storage: 20Gi

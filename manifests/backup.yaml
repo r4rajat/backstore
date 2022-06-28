@@ -1,0 +1,8 @@
+apiVersion: backstore.github.com/v1alpha1
+kind: Backup
+metadata:
+  name: backup-0
+spec:
+  backup-name: mysql-fresh
+  volume: mysql-pv-claim
+  namespace: default
