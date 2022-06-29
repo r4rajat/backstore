@@ -12,13 +12,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error Creating Dynamic Client.\nReason --> %s", err.Error())
 	}
-	log.Println(exssClientSet)
 	infFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 10*time.Minute)
 	backupController := controllers.NewBackupController(dynamicClient, infFactory, exssClientSet)
 	restoreController := controllers.NewRestoreController(dynamicClient, infFactory, kClient)
-	infFactory.Start(make(<-chan struct{}))
-	restoreController.Run(make(<-chan struct{}))
-
-	backupController.Run(make(<-chan struct{}))
-
+	ch := make(<-chan struct{})
+	go infFactory.Start(ch)
+	backupController.Run(ch)
+	restoreController.Run(ch)
 }

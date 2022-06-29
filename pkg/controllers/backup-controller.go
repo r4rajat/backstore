@@ -29,7 +29,7 @@ type backupController struct {
 func NewBackupController(client dynamic.Interface, dynInformer dynamicinformer.DynamicSharedInformerFactory, exssClient exss.Interface) *backupController {
 	queue := os.Getenv("BACKSTORE_BACKUP_QUEUE")
 	if queue == "" {
-		queue = "BACKSTORE_BACKUP"
+		queue = "BACKSTORE"
 	}
 	inf := dynInformer.ForResource(schema.GroupVersionResource{
 		Group:    "backstore.github.com",
@@ -75,6 +75,7 @@ func (bkup *backupController) processItem() bool {
 		return false
 	}
 	defer bkup.queue.Forget(item)
+	defer bkup.queue.ShutDown()
 
 	key, err := cache.MetaNamespaceKeyFunc(item)
 	if err != nil {
@@ -91,6 +92,7 @@ func (bkup *backupController) processItem() bool {
 	if err != nil {
 		return false
 	}
+	defer bkup.queue.Done(item)
 
 	return true
 }

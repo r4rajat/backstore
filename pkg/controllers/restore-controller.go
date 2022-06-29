@@ -30,7 +30,7 @@ type restoreController struct {
 func NewRestoreController(client dynamic.Interface, dynInformer dynamicinformer.DynamicSharedInformerFactory, kClient kubernetes.Interface) *restoreController {
 	queue := os.Getenv("BACKSTORE_RESTORE_QUEUE")
 	if queue == "" {
-		queue = "BACKSTORE_RESTORE"
+		queue = "BACKSTORE"
 	}
 	inf := dynInformer.ForResource(schema.GroupVersionResource{
 		Group:    "backstore.github.com",
@@ -58,7 +58,6 @@ func (rstr *restoreController) Run(ch <-chan struct{}) {
 	if !cache.WaitForCacheSync(ch, rstr.informer.HasSynced) {
 		fmt.Print("waiting for cache to be synced\n")
 	}
-
 	go wait.Until(rstr.worker, 1*time.Second, ch)
 
 	<-ch
@@ -76,7 +75,7 @@ func (rstr *restoreController) processItem() bool {
 		return false
 	}
 	defer rstr.queue.Forget(item)
-
+	defer rstr.queue.ShutDown()
 	key, err := cache.MetaNamespaceKeyFunc(item)
 	if err != nil {
 		log.Printf("Error getting key from cache.\nreason --> %s", err.Error())
@@ -92,6 +91,8 @@ func (rstr *restoreController) processItem() bool {
 	if err != nil {
 		return false
 	}
+	defer rstr.queue.Done(item)
+
 	return true
 }
 
