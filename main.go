@@ -17,6 +17,6 @@ func main() {
 	restoreController := controllers.NewRestoreController(dynamicClient, infFactory, kClient)
 	ch := make(<-chan struct{})
 	go infFactory.Start(ch)
-	backupController.Run(ch)
+	go backupController.Run(ch)
 	restoreController.Run(ch)
 }
