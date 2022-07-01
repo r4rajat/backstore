@@ -1,37 +1,109 @@
-## Welcome to GitHub Pages
+<h1 align="center">BackStore - Backup and Restore PVC Custom k8s Controller</h1>
 
-You can use the [editor on GitHub](https://github.com/r4rajat/backstore/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+---
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
-### Markdown
+## 📝 Table of Contents
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+- [About](#about)
+- [Getting Started](#getting_started)
+- [Running the Code](#run)
+- [Authors](#authors)
+- [Acknowledgments](#acknowledgement)
 
-```markdown
-Syntax highlighted code block
+## 🧐 About <a name = "about"></a>
 
-# Header 1
-## Header 2
-### Header 3
+The BackStore custom kubernetes controller is written primarily in go lang. This controller explicitly keeps a watch on newly created CRs for Backupping and Restoring in all Namespaces,<br>
+And as soon as a new CR is created, our controller will create Backup or Restore Data of PVC based on the CR.
 
-- Bulleted
-- List
+## 🏁 Getting Started <a name = "getting_started"></a>
 
-1. Numbered
-2. List
+These instructions will get you the project up and running on your local machine for development and testing purposes. See [Running the Code](#run) for notes on how to deploy the project on a Local System or on a Kubernetes Server.
 
-**Bold** and _Italic_ and `Code` text
+### Prerequisites
 
-[Link](url) and ![Image](src)
+To run the BackStore Controller on Local System, first we need to install following Software Dependencies.
+
+- [Go](https://go.dev/dl/)
+- [Docker](https://docs.docker.com/get-docker/)
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/)
+
+Once above Dependencies are installed we can move with [further steps](#installing)
+
+### Installing <a name = "installing"></a>
+
+A step by step series of examples that tell you how to get a development env running.
+
+#### Step 1: Install Project related Dependencies
+```
+go mod tidy
 ```
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+#### Step 2: Running a 2 Node Mock Kubernetes Server Locally using minikube
+```
+minikube start --nodes 2
+```
 
-### Jekyll Themes
+#### Step 3: Enable volumesnapshots and csi-hostpath-driver addons:
+```
+minikube addons enable volumesnapshots
+minikube addons enable csi-hostpath-driver
+```
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/r4rajat/backstore/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+#### Step 4: Setting Up Environmental Variables
 
-### Support or Contact
+Set up the Environmental variables according to your needs. The Application will run with defaults as mentioned in the following table
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+| Environmental Variable  | Usage                                | Default Values    |
+|-------------------------|--------------------------------------|-------------------|
+| BACKSTORE_RESTORE_QUEUE | Queue for holding Restore CR objects | BACKSTORE_RESTORE |
+| BACKSTORE_BACKUP_QUEUE  | Queue for holding Backup CR objects  | BACKSTORE_BACKUP  |
+
+
+#### Step 5: Creating MySQL Deployments, PV and PVC
+```
+kubectl create -f manifests/mysql-secret.yaml
+kubectl create -f manifests/mysql-storage.yaml
+kubectl create -f manifests/mysql-deployment.yaml
+```
+
+#### Step 5: Creating CRDs for Backup and Restore
+```
+kubectl create -f manifests/backup-crd.yaml
+kubectl create -f manifests/restore-crd.yaml
+```
+
+
+## 🔧 Running the Code <a name = "run"></a>
+
+To Run the BackStore Controller on local machine, Open a terminal in the Project and run following command
+```
+go build
+```
+```
+./backstore
+```
+
+Insert Some Data in Mysql PV,PVC
+
+```
+kubectl create -f manifests/backup.yaml
+```
+Delete Data from Mysql PV,PVC
+```
+kubectl create -f manifests/restore.yaml
+```
+
+
+## ✍️ Authors <a name = "authors"></a>
+
+- [@r4rajat](https://github.com/r4rajat) - Implementation
+
+## 🎉 Acknowledgements <a name = "acknowledgement"></a>
+
+- References
+    - https://pkg.go.dev/k8s.io/client-go
+    - https://pkg.go.dev/k8s.io/apimachinery
+    - https://pkg.go.dev/github.com/mitchellh/go-homedir
+    - https://minikube.sigs.k8s.io/docs/tutorials/volume_snapshots_and_csi/
+    - https://pkg.go.dev/github.com/kubernetes-csi/external-snapshotter/v6
