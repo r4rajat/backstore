@@ -23,6 +23,8 @@ spec:
               properties:
                 backup-name:
                   type: string
+                volume-snapshot-class-name:
+                  type: string
                 storage:
                   type: string
   names:

@@ -21,9 +21,11 @@ spec:
             spec:
               type: object
               properties:
-                backup-name:
+                volume-snapshot-name:
                   type: string
-                volume:
+                volume-snapshot-class-name:
+                  type: string
+                pvc:
                   type: string
                 namespace:
                   type: string

@@ -3,6 +3,7 @@ kind: Backup
 metadata:
   name: backup-0
 spec:
-  backup-name: mysql-fresh
-  volume: mysql-pv-claim
+  volume-snapshot-name: mysql-fresh
+  volume-snapshot-class-name: csi-hostpath-snapclass
+  pvc: mysql-pv-claim
   namespace: default

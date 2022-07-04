@@ -116,7 +116,7 @@ func (rstr *restoreController) createRestore(ns string, name string) error {
 		log.Printf("Error Converting Unstructured Object to Structured Object.\nReason --> %s", err.Error())
 	}
 	log.Printf("Structured Object --> %v", restore)
-	volumeSnapshotClass := "csi-hostpath-sc"
+	volumeSnapshotClass := restore.Spec.VolumeSnapshotClassName
 	apiGroup := "snapshot.storage.k8s.io"
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

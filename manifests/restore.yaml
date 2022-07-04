@@ -5,3 +5,5 @@ metadata:
 spec:
   backup-name: mysql-fresh
   storage: 20Gi
+  volume-snapshot-class-name: csi-hostpath-snapclass
+

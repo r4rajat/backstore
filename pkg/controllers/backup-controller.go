@@ -117,16 +117,16 @@ func (bkup *backupController) createBackup(ns string, name string) error {
 		log.Printf("Error Converting Unstructured Object to Structured Object.\nReason --> %s", err.Error())
 	}
 	log.Printf("Structured Object --> %v", backup)
-	volumeSnapshotClass := "csi-hostpath-snapclass"
+	volumeSnapshotClass := backup.Spec.VolumeSnapshotClassName
 	snapshot := snapshots.VolumeSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: backup.Spec.BackupName,
-			//Namespace: backup.Spec.Namespace,
+			Name:      backup.Spec.VolumeSnapshotName,
+			Namespace: backup.Spec.Namespace,
 		},
 		Spec: snapshots.VolumeSnapshotSpec{
 			VolumeSnapshotClassName: &volumeSnapshotClass,
 			Source: snapshots.VolumeSnapshotSource{
-				PersistentVolumeClaimName: &backup.Spec.Volume,
+				PersistentVolumeClaimName: &backup.Spec.PVC,
 			},
 		},
 	}
