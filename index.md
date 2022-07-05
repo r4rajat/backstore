@@ -48,6 +48,8 @@ minikube start --nodes 2
 ```
 minikube addons enable volumesnapshots
 minikube addons enable csi-hostpath-driver
+kubectl create -f manifests/rbac-csi-snapshotter.yaml
+kubectl create -f manifests/rbac-external-snapshotter.yaml
 ```
 
 #### Step 4: Setting Up Environmental Variables
