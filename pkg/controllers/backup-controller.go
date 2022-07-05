@@ -3,10 +3,12 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/kanisterio/kanister/pkg/poll"
 	snapshots "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	exss "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	"github.com/r4rajat/backstore/pkg/apis/backstore.github.com/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -116,7 +118,6 @@ func (bkup *backupController) createBackup(ns string, name string) error {
 	if err != nil {
 		log.Printf("Error Converting Unstructured Object to Structured Object.\nReason --> %s", err.Error())
 	}
-	log.Printf("Structured Object --> %v", backup)
 	volumeSnapshotClass := backup.Spec.VolumeSnapshotClassName
 	snapshot := snapshots.VolumeSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -131,9 +132,82 @@ func (bkup *backupController) createBackup(ns string, name string) error {
 		},
 	}
 	_, err = bkup.exssClient.SnapshotV1().VolumeSnapshots(backup.Spec.Namespace).Create(context.Background(), &snapshot, metav1.CreateOptions{})
-	log.Printf("Snapshot Created for %s", name)
 	if err != nil {
 		return err
 	}
+	log.Printf("Snapshot Created for %s", name)
+	err = bkup.updateStatus("Creating", name, ns)
+	if err != nil {
+		log.Printf("Error Updating Status.\nReason --> %s", err.Error())
+		return err
+	}
+	log.Printf("\nUpdating Status --> Creating")
+	err = bkup.waitForBackup(backup.Spec.VolumeSnapshotName, backup.Spec.Namespace)
+	if err != nil {
+		log.Printf("backup state not ready...")
+	}
+	err = bkup.updateStatus("Created", name, ns)
+	if err != nil {
+		log.Printf("Error Updating Status.\nReason --> %s", err.Error())
+		return err
+	}
+	log.Printf("\nUpdating Status --> Created")
 	return nil
+}
+
+func (bkup *backupController) updateStatus(progress string, name string, ns string) error {
+	backupResource, err := bkup.client.Resource(schema.GroupVersionResource{
+		Group:    "backstore.github.com",
+		Version:  "v1alpha1",
+		Resource: "backups",
+	}).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error Getting Backup Resource %s from Namespace %s.\nReason --> %s", name, ns, err.Error())
+		return err
+	}
+	backup := v1alpha1.Backup{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(backupResource.Object, &backup)
+	if err != nil {
+		log.Printf("Error Converting Unstructured Object to Structured Object.\nReason --> %s", err.Error())
+		return err
+	}
+	backup.Status.Progress = progress
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&backup)
+	if err != nil {
+		log.Printf("Error Converting Structured object to unstructured object..")
+		return err
+	}
+	u := unstructured.Unstructured{Object: unstructuredObj}
+	updated, err := bkup.client.Resource(schema.GroupVersionResource{
+		Group:    "backstore.github.com",
+		Version:  "v1alpha1",
+		Resource: "backups",
+	}).Namespace(ns).UpdateStatus(context.Background(), &u, metav1.UpdateOptions{})
+	log.Printf("Updated  --> %v", updated)
+	if err != nil {
+		log.Printf("Error Updating Status for %s.\nReason --> %s", backup.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (bkup *backupController) waitForBackup(name string, ns string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
+		state := bkup.getBackupState(name, ns)
+		if state == true {
+			return true, nil
+		}
+		return false, nil
+	})
+}
+
+func (bkup *backupController) getBackupState(name string, ns string) bool {
+	backup, err := bkup.exssClient.SnapshotV1().VolumeSnapshots(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error Getting Current State of Volume Snapshot %s.\nReason --> %s", name, err.Error())
+	}
+	status := backup.Status.ReadyToUse
+	return *status
 }
