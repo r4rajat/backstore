@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/kanisterio/kanister/pkg/poll"
 	snapshots "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	exss "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	"github.com/r4rajat/backstore/pkg/apis/backstore.github.com/v1alpha1"
@@ -142,16 +141,8 @@ func (bkup *backupController) createBackup(ns string, name string) error {
 		return err
 	}
 	log.Printf("\nUpdating Status --> Creating")
-	err = bkup.waitForBackup(backup.Spec.VolumeSnapshotName, backup.Spec.Namespace)
-	if err != nil {
-		log.Printf("backup state not ready...")
-	}
-	err = bkup.updateStatus("Created", name, ns)
-	if err != nil {
-		log.Printf("Error Updating Status.\nReason --> %s", err.Error())
-		return err
-	}
-	log.Printf("\nUpdating Status --> Created")
+	go bkup.waitForBackup(backup.Spec.VolumeSnapshotName, backup.Spec.Namespace, name, ns)
+
 	return nil
 }
 
@@ -178,12 +169,11 @@ func (bkup *backupController) updateStatus(progress string, name string, ns stri
 		return err
 	}
 	u := unstructured.Unstructured{Object: unstructuredObj}
-	updated, err := bkup.client.Resource(schema.GroupVersionResource{
+	_, err = bkup.client.Resource(schema.GroupVersionResource{
 		Group:    "backstore.github.com",
 		Version:  "v1alpha1",
 		Resource: "backups",
 	}).Namespace(ns).UpdateStatus(context.Background(), &u, metav1.UpdateOptions{})
-	log.Printf("Updated  --> %v", updated)
 	if err != nil {
 		log.Printf("Error Updating Status for %s.\nReason --> %s", backup.Name, err.Error())
 		return err
@@ -191,16 +181,37 @@ func (bkup *backupController) updateStatus(progress string, name string, ns stri
 	return nil
 }
 
-func (bkup *backupController) waitForBackup(name string, ns string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
-		state := bkup.getBackupState(name, ns)
-		if state == true {
+//
+//func (bkup *backupController) waitForBackup(name string, ns string) error {
+//	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+//	defer cancel()
+//	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
+//		state := bkup.getBackupState(name, ns)
+//		if state == true {
+//			return true, nil
+//		}
+//		return false, nil
+//	})
+//}
+
+func (bkup *backupController) waitForBackup(volSnapName string, volSnapNS string, backupname string, backupNS string) {
+	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		status := bkup.getBackupState(volSnapName, volSnapNS)
+		if status == true {
+			err = bkup.updateStatus("Created", backupname, backupNS)
+			if err != nil {
+				log.Printf("Error Updating Status.\nReason --> %s", err.Error())
+			}
+			log.Printf("\nUpdating Status --> Created")
 			return true, nil
 		}
+		log.Println("Waiting for Volume Snapshot to get Ready ....")
 		return false, nil
 	})
+	if err != nil {
+		log.Printf("Error Waiting Backup for created.\nReason --> %s", err.Error())
+		return
+	}
 }
 
 func (bkup *backupController) getBackupState(name string, ns string) bool {

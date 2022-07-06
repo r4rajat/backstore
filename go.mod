@@ -2,12 +2,10 @@ module github.com/r4rajat/backstore
 
 go 1.18
 
-replace (
-	github.com/graymeta/stow => github.com/graymeta/stow v0.1.0
-)
+replace github.com/graymeta/stow => github.com/graymeta/stow v0.1.0
 
 require (
-	github.com/kanisterio/kanister v0.0.0-20220630165421-b5613035af99
+	github.com/kanisterio/kanister v0.0.0-20220706014822-5bd6b449bfc3
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	k8s.io/api v0.24.2
@@ -33,6 +31,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kr/pretty v0.2.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
