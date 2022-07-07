@@ -1,0 +1,9 @@
+apiVersion: backstore.github.com/v1alpha1
+kind: Restore
+metadata:
+  name: restore-pvc-mysql
+spec:
+  backup-name: mysql-after
+  storage: 20Gi
+  volume-snapshot-class-name: csi-hostpath-sc
+
