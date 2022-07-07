@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -143,6 +144,79 @@ func (rstr *restoreController) createRestore(ns string, name string) error {
 	if err != nil {
 		return err
 	}
+	err = rstr.updateStatus("Creating", name, ns)
+	if err != nil {
+		log.Printf("Error Updating Status.\nReason --> %s", err.Error())
+		return err
+	}
+	log.Printf("\nUpdating Status --> Creating")
+
+	go rstr.waitForRestore(restore.Name, ns, name, ns)
+
 	return nil
 
+}
+
+func (rstr *restoreController) updateStatus(progress string, name string, ns string) error {
+	restoreResource, err := rstr.client.Resource(schema.GroupVersionResource{
+		Group:    "backstore.github.com",
+		Version:  "v1alpha1",
+		Resource: "restores",
+	}).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error Getting Backup Resource %s from Namespace %s.\nReason --> %s", name, ns, err.Error())
+		return err
+	}
+	restore := v1alpha1.Restore{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(restoreResource.Object, &restore)
+	if err != nil {
+		log.Printf("Error Converting Unstructured Object to Structured Object.\nReason --> %s", err.Error())
+		return err
+	}
+	restore.Status.Progress = progress
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&restore)
+	if err != nil {
+		log.Printf("Error Converting Structured object to unstructured object..")
+		return err
+	}
+	u := unstructured.Unstructured{Object: unstructuredObj}
+	_, err = rstr.client.Resource(schema.GroupVersionResource{
+		Group:    "backstore.github.com",
+		Version:  "v1alpha1",
+		Resource: "restores",
+	}).Namespace(ns).UpdateStatus(context.Background(), &u, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Error Updating Status for %s.\nReason --> %s", restore.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (rstr *restoreController) waitForRestore(pvcName string, pvcNS string, restoreName string, restoreNS string) {
+	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		status := rstr.getRestorePVCState(pvcName, pvcNS)
+		if status == "Bound" {
+			err = rstr.updateStatus("Created", restoreName, restoreNS)
+			if err != nil {
+				log.Printf("Error Updating Status.\nReason --> %s", err.Error())
+			}
+			log.Printf("\nUpdating Status --> Created")
+			return true, nil
+		}
+		log.Println("Waiting for Restore to get Ready ....")
+		return false, nil
+	})
+	if err != nil {
+		log.Printf("Error Waiting Backup for created.\nReason --> %s", err.Error())
+		return
+	}
+}
+
+func (rstr *restoreController) getRestorePVCState(name, ns string) string {
+	restore, err := rstr.kClient.CoreV1().PersistentVolumeClaims(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error Getting Current State of Volume Snapshot %s.\nReason --> %s", name, err.Error())
+	}
+	status := restore.Status.Phase
+	return string(status)
 }

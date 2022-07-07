@@ -26,7 +26,8 @@ type BackupList struct {
 type Restore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              RestoreSpec `json:"spec,omitempty"`
+	Spec              RestoreSpec   `json:"spec,omitempty"`
+	Status            RestoreStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -37,6 +38,10 @@ type RestoreList struct {
 }
 
 type BackupStatus struct {
+	Progress string `json:"progress,omitempty"`
+}
+
+type RestoreStatus struct {
 	Progress string `json:"progress,omitempty"`
 }
 

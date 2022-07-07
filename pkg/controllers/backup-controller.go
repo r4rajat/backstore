@@ -181,22 +181,9 @@ func (bkup *backupController) updateStatus(progress string, name string, ns stri
 	return nil
 }
 
-//
-//func (bkup *backupController) waitForBackup(name string, ns string) error {
-//	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-//	defer cancel()
-//	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
-//		state := bkup.getBackupState(name, ns)
-//		if state == true {
-//			return true, nil
-//		}
-//		return false, nil
-//	})
-//}
-
 func (bkup *backupController) waitForBackup(volSnapName string, volSnapNS string, backupname string, backupNS string) {
 	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
-		status := bkup.getBackupState(volSnapName, volSnapNS)
+		status := bkup.getSnapshotState(volSnapName, volSnapNS)
 		if status == true {
 			err = bkup.updateStatus("Created", backupname, backupNS)
 			if err != nil {
@@ -214,7 +201,7 @@ func (bkup *backupController) waitForBackup(volSnapName string, volSnapNS string
 	}
 }
 
-func (bkup *backupController) getBackupState(name string, ns string) bool {
+func (bkup *backupController) getSnapshotState(name string, ns string) bool {
 	backup, err := bkup.exssClient.SnapshotV1().VolumeSnapshots(ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Error Getting Current State of Volume Snapshot %s.\nReason --> %s", name, err.Error())

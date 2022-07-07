@@ -4,10 +4,23 @@ metadata:
   name: restores.backstore.github.com
 spec:
   group: backstore.github.com
+  names:
+    plural: restores
+    singular: restore
+    kind: Restore
+    shortNames:
+      - rstr
+  scope: Namespaced
   versions:
     - name: v1alpha1
       served: true
       storage: true
+      additionalPrinterColumns:
+        - jsonPath: .status.progress
+          name: Progress
+          type: string
+      subresources:
+        status: { }
       schema:
         openAPIV3Schema:
           type: object
@@ -27,11 +40,10 @@ spec:
                   type: string
                 storage:
                   type: string
-  names:
-    plural: restores
-    singular: restore
-    kind: Restore
-    shortNames:
-      - rstr
-  scope: Namespaced
+            status:
+              type: object
+              properties:
+                progress:
+                  type: string
 
+status:
